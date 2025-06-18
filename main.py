@@ -5,6 +5,10 @@ from google import genai
 from google.genai import types
 from prompts import system_prompt
 from functions.get_files_info import schema_get_files_info
+from functions.get_file_content import schema_get_file_content
+from functions.write_file import schema_write_file
+from functions.run_python import schema_run_python_file
+from functions.call_function import call_function, available_functions
 
 def main():
 
@@ -28,27 +32,35 @@ def main():
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
     ]
 
-    available_functions = types.Tool(
-        function_declarations=[
-            schema_get_files_info,
-        ]
-    )
+    generate_content(client, messages, verbose)
 
+
+def generate_content(client, messages, verbose):
     response = client.models.generate_content(
         model="gemini-2.0-flash-001",
         contents=messages,
-        config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt),
+        config=types.GenerateContentConfig(
+            tools=[available_functions], system_instruction=system_prompt
+        ),
     )
+    if verbose:
+        print("Prompt tokens:", response.usage_metadata.prompt_token_count)
+        print("Response tokens:", response.usage_metadata.candidates_token_count)
 
-    print(response.text)
+    if not response.function_calls:
+        print("No function calls detected.")
+        print("Response text:", response.text)
+        return response.text
 
     for function_call_part in response.function_calls:
-        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+        function_call_result = call_function(function_call_part, verbose)
+        if function_call_result.parts[0].function_response.response == None:
+            raise Exception(f"Function {function_call_part.name} returned None")
+        elif verbose:
+            print(f"-> {function_call_result.parts[0].function_response.response}")
 
-    if verbose:
-        print(f"User prompt: {user_prompt}")
-        print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
-        print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+
+
 
 if __name__ == "__main__":
     main()
