@@ -36,28 +36,42 @@ def main():
 
 
 def generate_content(client, messages, verbose):
-    response = client.models.generate_content(
-        model="gemini-2.0-flash-001",
-        contents=messages,
-        config=types.GenerateContentConfig(
-            tools=[available_functions], system_instruction=system_prompt
-        ),
-    )
-    if verbose:
-        print("Prompt tokens:", response.usage_metadata.prompt_token_count)
-        print("Response tokens:", response.usage_metadata.candidates_token_count)
+    MAX_LOOPS = 20
+    loop_count = 0
+    function_called = True
+    while loop_count < MAX_LOOPS and function_called:
+        loop_count += 1
 
-    if not response.function_calls:
-        print("No function calls detected.")
-        print("Response text:", response.text)
-        return response.text
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-001",
+            contents=messages,
+            config=types.GenerateContentConfig(
+                tools=[available_functions], system_instruction=system_prompt
+            ),
+        )
+        if verbose:
+            print("Prompt tokens:", response.usage_metadata.prompt_token_count)
+            print("Response tokens:", response.usage_metadata.candidates_token_count)
 
-    for function_call_part in response.function_calls:
-        function_call_result = call_function(function_call_part, verbose)
-        if function_call_result.parts[0].function_response.response == None:
-            raise Exception(f"Function {function_call_part.name} returned None")
-        elif verbose:
-            print(f"-> {function_call_result.parts[0].function_response.response}")
+        if response.candidates:
+            for candidate in response.candidates:
+                messages.append(candidate.content)
+
+        if not response.function_calls:
+            print("No function calls detected.")
+            print("Final response text:", response.text)
+            function_called = False
+        else:
+            function_responses = []
+            for function_call_part in response.function_calls:
+                function_call_result = call_function(function_call_part, verbose)
+                if function_call_result.parts[0].function_response.response == None:
+                    raise Exception(f"Function {function_call_part.name} returned None")
+                elif verbose:
+                    print(f"-> {function_call_result.parts[0].function_response.response}")
+                function_responses.append(function_call_result.parts[0])
+                
+            messages.append(types.Content(role="tool", parts=function_responses))
 
 
 
