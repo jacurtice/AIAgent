@@ -12,6 +12,9 @@ def write_file(working_directory, file_path, content):
     if not os.path.exists(os.path.dirname(target_file)):
         os.makedirs(os.path.dirname(target_file), exist_ok=True)
 
+    if os.path.exists(target_file) and os.path.isdir(target_file):
+        return f'Error: "{file_path}" is a directory, not a file'
+
     try:
         with open(target_file, "w") as f:
             f.write(content)
