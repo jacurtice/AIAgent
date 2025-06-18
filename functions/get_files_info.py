@@ -1,11 +1,12 @@
 import os
+from google.genai import types
 
 def get_files_info(working_directory, directory=None):
     if not directory:
         return f'Error: directory does not exist'
     
     path = os.path.join(working_directory, directory)
-    print(f"Working directory: {working_directory}, Directory: {directory}, Path: {path}")
+    #print(f"Working directory: {working_directory}, Directory: {directory}, Path: {path}")
 
     if not os.path.exists(path):
         return f'Error: "{path}" does not exist'
@@ -15,7 +16,7 @@ def get_files_info(working_directory, directory=None):
     
     absworking_directory = os.path.abspath(working_directory)
     absdirectory = os.path.abspath(path)
-    print(f"Absolute working directory: {absworking_directory}, Absolute directory: {absdirectory}")
+    #print(f"Absolute working directory: {absworking_directory}, Absolute directory: {absdirectory}")
 
     if not absdirectory.startswith(absworking_directory):
         return f'Error: Cannot list "{directory}" as it is outside the permitted working directory'
@@ -38,3 +39,17 @@ def get_files_info(working_directory, directory=None):
         return f"Error listing files: {e}"
     
     
+
+schema_get_files_info = types.FunctionDeclaration(
+    name="get_files_info",
+    description="Lists files in the specified directory along with their sizes, constrained to the working directory.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "directory": types.Schema(
+                type=types.Type.STRING,
+                description="The directory to list files from, relative to the working directory. If not provided, lists files in the working directory itself.",
+            ),
+        },
+    ),
+)
